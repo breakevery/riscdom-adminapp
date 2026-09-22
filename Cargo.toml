@@ -1,0 +1,21 @@
+[package]
+name = "host-tauri"
+description = "The Tauri half of the RiscDom host backend (commands + facade over host-core)"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+# The portable half. This crate re-exports its public surface (`pub use
+# host_core::*`), so the desktop shell depends on one crate and a consumer written
+# against the pre-split `host` keeps compiling unchanged (A1 W1).
+host-core = { path = "../host-core" }
+tauri = { version = "2", features = [] }
+# `Value` in the `TauriEventSink` impl; `host-core` owns the envelope itself.
+serde_json = "1"
+# `tokio` used to sit here as a direct edge with no user anywhere in this crate or
+# its tests; removed in A1 wave 4. (`cargo tree` still shows tokio through Tauri.)
+
+# No [dev-dependencies]: this crate has no tests of its own. The 39 integration
+# tests moved to `host-core/tests` in A1 wave 2, and they use `host-core`'s own
+# dependencies (`agent`, `audit`, `sandbox`, `serde_json`, `sha2`, `rusqlite`,
+# `zip` / `flate2` + `tar`), so nothing is declared twice.
