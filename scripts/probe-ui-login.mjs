@@ -21,8 +21,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const SRC = path.join(REPO, "ui", "src");
+const REPO = path.resolve(HERE, "..");
+const SRC = path.join(REPO, "src");
 
 const LOGIN = path.join(SRC, "Login.tsx");
 const APP = path.join(SRC, "App.tsx");

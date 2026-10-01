@@ -1,0 +1,186 @@
+# Cross-platform CI checks for riscdom-adminapp (v1.0 M8-4b).
+#
+# ONE SOURCE OF TRUTH
+# -------------------
+# The `gate` job does not keep its own list of commands: it installs the tools the
+# gate needs (Rust + Node) and runs `sh scripts/gate.sh`. Everything the local gate
+# checks, CI checks the same way, and a step can never drift apart between the two
+# again. Do NOT add `cargo ...` / `node ...` checks to this file -- put them in the
+# gate.
+#
+# This repository is the management program: the Tauri shell (`host-tauri`) and the
+# front end (this directory). The kernel is `breakevery/riscdom` (pinned to its
+# `v1.0.0` tag); the control plane is `breakevery/riscdom-server`. Each repository
+# runs its own gate; this one checks only what is here.
+#
+# DELIBERATE DIFFERENCES
+# ----------------------
+# `scripts/gate.sh` prints every skip with a reason; nothing is skipped silently.
+# Four of the seventeen UI probes read kernel sources that left with the split, and
+# each prints a SKIP instead of failing (the cross-repository checks return with
+# M8-4d).
+#
+# NOTE ON YAML: step names must not contain ": " inside an unquoted scalar -- YAML
+# reads it as a nested mapping and GitHub rejects the whole workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  secrets:
+    name: secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks scans the full history, so a shallow clone is not enough.
+          fetch-depth: 0
+
+      # gitleaks-action@v2 needs a GITLEAKS_LICENSE for organization-owned private
+      # repositories, so the community binary is used instead.
+      - name: install gitleaks
+        run: |
+          set -euo pipefail
+          V=8.30.1
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: scan git history
+        run: |
+          set -euo pipefail
+          if gitleaks git --help >/dev/null 2>&1; then
+            gitleaks git --redact --verbose
+          else
+            gitleaks detect --source . --redact --verbose
+          fi
+
+  gate:
+    name: gate (scripts/gate.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The two Tauri crates need WebKitGTK and its neighbours on Linux, and
+      # `host-tauri` reaches `host-core` (a git dependency), whose `keyring` backend
+      # builds `libdbus-sys`.
+      - name: install system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            libdbus-1-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libxdo-dev \
+            build-essential
+
+      # The gate needs: rustfmt + clippy, and Node >= 22.6 for the UI probes (they
+      # import the `.ts` modules with type stripping).
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # The gate's `npm run build` needs the front end dependencies; installing them
+      # here keeps the gate itself free of an install step, and `npm ci` is exact.
+      - name: install frontend dependencies
+        run: npm ci
+
+      - name: gate
+        run: sh scripts/gate.sh
+
+  # macOS and Linux bundles.
+  #
+  # This job **builds only**: no `cargo test`, no UI probe, no `cargo clippy`. The
+  # one list of what "green" means is still `scripts/gate.sh`; a build is not a check.
+  # What it is for is the one thing the gate cannot do: produce a `dmg` on macOS and a
+  # `deb` / `rpm` / `AppImage` on Linux. It runs on a manual dispatch and on a `v*`
+  # tag, never on an ordinary push or a pull request.
+  bundle:
+    name: bundle (${{ matrix.os }})
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libdbus-1-dev \
+            libxdo-dev \
+            build-essential \
+            pkg-config \
+            patchelf \
+            rpm \
+            file \
+            wget \
+            curl
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: install frontend dependencies
+        run: npm ci
+
+      # The repository's own build command. GitHub sets `CI=true`, which the Tauri
+      # CLI reads to skip its prompts.
+      - name: build bundles
+        run: npm run tauri build
+
+      - name: upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: riscdom-adminapp-bundles-${{ matrix.os }}
+          path: src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 14

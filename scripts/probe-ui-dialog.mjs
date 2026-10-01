@@ -17,14 +17,14 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const MODULE = path.join(REPO, "ui", "src", "lib", "pathPick.ts");
-const STORE = path.join(REPO, "ui", "src", "state", "appStore.ts");
-const TAB = path.join(REPO, "ui", "src", "settings", "ToolchainTab.tsx");
-const PKG = path.join(REPO, "ui", "package.json");
-const CARGO = path.join(REPO, "ui", "src-tauri", "Cargo.toml");
-const SHELL = path.join(REPO, "ui", "src-tauri", "src", "lib.rs");
-const CAPS = path.join(REPO, "ui", "src-tauri", "capabilities", "default.json");
+const REPO = path.resolve(HERE, "..");
+const MODULE = path.join(REPO, "src", "lib", "pathPick.ts");
+const STORE = path.join(REPO, "src", "state", "appStore.ts");
+const TAB = path.join(REPO, "src", "settings", "ToolchainTab.tsx");
+const PKG = path.join(REPO, "package.json");
+const CARGO = path.join(REPO, "src-tauri", "Cargo.toml");
+const SHELL = path.join(REPO, "src-tauri", "src", "lib.rs");
+const CAPS = path.join(REPO, "src-tauri", "capabilities", "default.json");
 
 let failures = 0;
 function check(name, ok, detail) {

@@ -20,9 +20,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const PANEL = path.join(REPO, "ui", "src", "panels", "ChatPanel.tsx");
-const MODULE = path.join(REPO, "ui", "src", "lib", "scrollRule.ts");
+const REPO = path.resolve(HERE, "..");
+const PANEL = path.join(REPO, "src", "panels", "ChatPanel.tsx");
+const MODULE = path.join(REPO, "src", "lib", "scrollRule.ts");
 
 const preFix = process.argv.includes("--pre-fix");
 let failures = 0;

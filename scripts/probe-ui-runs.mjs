@@ -19,16 +19,16 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const MODULE = path.join(REPO, "ui", "src", "lib", "runView.ts");
-const I18N = path.join(REPO, "ui", "src", "i18n", "index.ts");
-const TAB = path.join(REPO, "ui", "src", "settings", "AuditTab.tsx");
-const API = path.join(REPO, "ui", "src", "api", "tauri.ts");
+const REPO = path.resolve(HERE, "..");
+const MODULE = path.join(REPO, "src", "lib", "runView.ts");
+const I18N = path.join(REPO, "src", "i18n", "index.ts");
+const TAB = path.join(REPO, "src", "settings", "AuditTab.tsx");
+const API = path.join(REPO, "src", "api", "tauri.ts");
 // The shapes moved out of the Tauri module in v0.9 D2b-1; the field assertion
 // below reads them where they live now.
-const API_TYPES = path.join(REPO, "ui", "src", "api", "types.ts");
-const SHELL = path.join(REPO, "ui", "src-tauri", "src", "lib.rs");
-const STORE = path.join(REPO, "ui", "src", "state", "appStore.ts");
+const API_TYPES = path.join(REPO, "src", "api", "types.ts");
+const SHELL = path.join(REPO, "src-tauri", "src", "lib.rs");
+const STORE = path.join(REPO, "src", "state", "appStore.ts");
 const HOST_CMDS = path.join(REPO, "host-tauri", "src", "commands.rs");
 
 let failures = 0;
@@ -379,8 +379,8 @@ check("the placeholder for an unimplemented diff is gone", !/字段级差异是 
 // content, and the row is a flex line whose text could not shrink. The contract
 // below is what keeps status + fingerprint + button on screen; it is CSS, so the
 // probe pins the rules rather than a rendered result.
-const LAYOUT = path.join(REPO, "ui", "src", "styles", "layout.css");
-const PANELS = path.join(REPO, "ui", "src", "styles", "panels.css");
+const LAYOUT = path.join(REPO, "src", "styles", "layout.css");
+const PANELS = path.join(REPO, "src", "styles", "panels.css");
 const layoutCss = readFileSync(LAYOUT, "utf8");
 const panelsCss = readFileSync(PANELS, "utf8");
 check(

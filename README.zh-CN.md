@@ -1,149 +1,92 @@
 [English](README.md) | 中文
 
-# ui
+# riscdom-adminapp
 
-智芯城（RiscDom）的桌面前端（Tauri 2 + React + TypeScript + Vite）。
+**RiscDom 管理程序** —— 驱动一个 RiscDom 节点与控制平面的桌面应用（并将在未来扩展出
+移动端与浏览器形态）。
 
-## 界面结构
+本仓是三仓之一。内核是
+[`breakevery/riscdom`](https://github.com/breakevery/riscdom) —— 沙箱、审计链、agent 循环、
+连接层与 host core。作为程序的控制平面是
+[`breakevery/riscdom-server`](https://github.com/breakevery/riscdom-server) —— HTTP + SSE 服务端。
+**本仓是人真正使用的那个程序**：Tauri 外壳与 React 前端。
 
-**主视图** —— 左右两栏，**始终同时可见**（核心体验）：
+> **状态。** `v1.0.0`。自内核拆出即 **M8-4b**；本仓承载前端（在仓库根）与 Tauri 外壳 crate
+> （`host-tauri/`）。
 
-- **左 · 对话框**（`panels/ChatPanel.tsx`）：消息列表（user / assistant / tool）+ 底部输入框；
-  工具调用为可折叠块（工具名 + 参数 + 结果）；运行中输入框禁用并显示“思考中…”。
-- **右 · 串口画布**（`panels/CanvasPanel.tsx`）：xterm.js 终端，实时显示 guest 串口输出；
-  顶部有 VM 状态条 + 清屏 + 导出串口日志。串口输出**跨 run 累积**（不自动清屏）。
-- 两栏之间一条可拖拽分隔条（`layout/AppShell.tsx`，无第三方分栏库）；聊天宽度记忆在
-  `localStorage` 的 `riscdom.layout.chatWidth`（整数像素，不含任何敏感信息）。
+## 这里有什么
 
-**顶栏** —— 左侧项目名；一旦本会话用过 VM，就会出现 **VM 徽标**：绿点“VM 运行中”或
-灰点“VM 已停止”，hover 显示已运行时长。VM 是跨 run 资源（prompt 已要求 AI 不要自行停止），
-徽标就是你确认它仍活着的入口；状态由**后端权威提供**（`vm_status`），前端不凭空推断。
-最右侧的齿轮按钮进入设置页。
-
-**设置页** —— 由顶栏右侧齿轮按钮进入，`Esc` 或“← 返回”回到主视图；全屏，内部分 tab
-（`src/settings/SettingsTabs.tsx`）：
-
-- **模型** —— **执行者**（本表单编辑谁的模型配置；「本机」就是空的那一项）/ 服务商预设 / Base URL / Model / API Key、“保存到系统钥匙串”、就绪状态横幅
-- **工具链** —— 两个区块（RISC-V GCC 与 QEMU）：各自的状态（路径 + source 徽标）、重新探测、
-  手动指定路径、探测详情
-- **快照** —— 快照列表（保存 / 恢复 / 删除）+ 工作区文件列表
-- **审计** —— 事件数、hash chain 状态、按 actor 过滤、最近事件列表
-- **插件** —— 能力插件系统占位（v0.4+）
-
-两个视图都**保持挂载**、仅用 CSS 切换显示，所以切页不会丢消息、终端缓冲或滚动位置。
-
-## 自动滚动
-
-对话框与串口画布会自己跟随最新输出——**不引入任何第三方滚动库**，只用 `scrollTop` /
-`scrollHeight`（对话框）与 xterm 的 `viewportY` / `baseY`（串口）。
-
-- 当你在底部（或距底部 80px 内）时，新消息、流式增量、串口分帧都会自动进入视野；
-  高频流式增量按**动画帧合并**，每帧最多滚一次。
-- 一旦你主动上翻，跟随即刻暂停：改为浮出 **有新消息 ↓** / **跳到最新 ↓** 按钮，而不是把视图
-  拽回去；点击后回到底部并隐藏按钮。
-- run 结束（`agent:final`）、切换会话、清屏终端，都会直接回到底部。
-
-## 运行
-
-```powershell
-npm install
-npm run build        # tsc + vite build
-npm run tauri dev    # 启动桌面应用（需要 Rust 工具链）
+```text
+riscdom-adminapp/
+├── Cargo.toml            # workspace：只含 `host-tauri`；`src-tauri` 独立构建
+├── host-tauri/           # Tauri 外壳：命令 / 事件 / 状态（host-core 之上的门面）
+├── src/                  # React 前端（layout / panels / API / state）
+├── src-tauri/            # Tauri 应用 crate（注册 host-tauri 的命令）
+├── scripts/              # gate、探针、守卫
+├── index.html, vite.config.ts, tsconfig*.json
+├── CLA.md                # 本仓自带的 CLA 与签署库
+└── .github/workflows/    # ci.yml（gate / bundle / secrets）、cla.yml
 ```
 
-`npm run tauri build` 出安装包（需图标等，MVP 未打磨）。
+前端位于**仓库根**（它曾是内核里的 `ui/`）。`src-tauri/` 是一个**独立** crate —— 不属
+workspace，因为 Tauri 的构建需要它自己的 lock 文件 —— 它依赖：
 
-## 设置 API Key（仅本次会话）
+- `host-tauri`：**path**（`../host-tauri`），本仓内的 crate；
+- `server`：来自 **`riscdom-server` 的 `v1.0.0` tag**（git 依赖），即外壳在进程内启动、好让手机
+  也能访问该节点的那个控制平面。
 
-在**设置**栏填写 API Key / Base URL / Model，点"保存到本次会话"。
+`host-tauri` 反过来依赖内核的 `host-core` 与 `net`，来自**内核的 `v1.0.0` tag**。每个上游仓一个
+tag，且 `Cargo.lock` 已提交：tag 会移动，提交的 lock 不会。
 
-- Key 只存在后端内存（`host_core::AppState::llm_config`）；
-- **不写 localStorage / sessionStorage / console / 审计 / 磁盘**；
-- 前端保存后立即清空输入框；
-- 状态显示只回显 `base_url` / `model`，**不回显 key**。
+## 要求
 
-## 架构
+- **Rust**（含 `rustfmt` + `clippy`），Windows 上还需 **MSVC 工具链**（Tauri 需要）。
+- **Node / npm** —— Node 22.6 或更新（探针直接 import `.ts`、依赖类型剥离；23.6 起默认）。
+- **Linux** 另需 WebKitGTK 及其伙伴（`libwebkit2gtk-4.1-dev`、`libgtk-3-dev`、`librsvg2-dev`、
+  `libsoup-3.0-dev`、`libayatana-appindicator3-dev`）与 `libdbus-1-dev`（内核的 `keyring` 后端）。
 
+## 构建与运行
+
+```sh
+# 1. 前端依赖
+npm ci
+
+# 2. 启动桌面应用（会编译 Rust 后端）
+npm run tauri dev
 ```
-前端 (React)  --invoke/listen-->  ui/src-tauri (Tauri shell)  -->  host crate
-                                                                    |--> agent
-                                                                    |--> sandbox
-                                                                    |--> audit
-```
 
-- 所有 `invoke` 调用集中在 `src/api/tauri.ts`，便于审计。
-- 前端**不直接**接触 QEMU / gcc / Rust crate。
-- 不使用 `innerHTML` / `dangerouslySetInnerHTML` 渲染 LLM 或串口内容（防 XSS）。
-
-## 事件
-
-`agent:iteration` / `agent:tool_call` / `agent:tool_result` / `agent:final` /
-`serial:chunk` / `vm:state`。详见 `host-tauri/README.md`。
+在设置里指向一个模型提供方后（自带密钥，或用本地模型如 Ollama / LM Studio —— 无需密钥），让 agent
+端到端做一件事，例如：*「写一个 RISC-V 裸机 Hello World，编译、运行并读回串口输出」*。
 
 ## 测试
 
-端到端（mock LLM，需 QEMU + RISC-V 工具链）：
+```sh
+# gate：「绿」的唯一清单（CI 跑同一个文件）
+sh scripts/gate.sh
 
-```text
-cargo test -p host-core -- --ignored --nocapture
+# 单独跑外壳 crate
+cargo test -p host-tauri
+
+# 前端构建
+npm run build
 ```
 
-真实 API 端到端（需 key）：
+gate 会跑前端构建、`host-tauri` 与 `src-tauri` 的 lint 与 check，以及 **17 个 UI 回归探针**。其中
+4 个探针读取位于内核的源码（拆仓把它们移走了）；每一个都会打印带原因的 **SKIP** 而不是失败，跨仓
+校验将在 **M8-4d** 回归。
 
-```powershell
-$env:DEEPSEEK_API_KEY = "***"
-cargo test -p agent -- --ignored --nocapture
-npm run tauri dev   # 或直接手动操作界面
-```
+## 安全声明
 
-## 快照面板
+- 本程序**不提供、不托管、不内嵌**任何 API key。所有模型访问均为自带密钥（BYOK）。
+- API key 留在你的机器上（默认在 OS keyring），**绝不经过本项目任何服务器**。
+- 本程序**绝不**上传你的代码、串口输出或审计日志。
 
-设置栏的“快照”区列出 `<workspace>/.riscdom/snapshots` 下的快照：
+## 贡献
 
-- 标注“**真实**”（`.mig`，QMP 迁移流）或“**重启式**”（`.json`，旧降级方案）；
-- 支持刷新与删除（删除前二次确认）；
-- “**保存当前状态**”：把 host 持有的运行中 VM 存成真实快照（VM 未运行时按钮禁用）；
-- “**恢复**”（仅真实快照）：二次确认后停止当前 VM 并从快照恢复（见 `host-tauri/README.md`）。
+请先读 [CONTRIBUTING.md](CONTRIBUTING.md)：每次改动都必须通过本地 gate（`scripts/gate.sh`）并走
+pull request。请签署 [CLA](CLA.md) —— 本仓自带其自己的。
 
-## 审计页：run 列表、并排对比与字段级差异
+## 许可证
 
-在审计页的 run 列表里勾选两个 run，会打开并排面板，其**下方**是**字段级差异**（v0.6 批次 1，黄金路径
-第 8 步）。宿主比较的是它从链上读到的两份配置指纹 —— 不是摘要，是文档本身 —— 并按指纹的**声明顺序**
-每个**顶层**字段返回一行。面板照接收到的顺序渲染：**不重排**，且无差异的字段同样完整列出。
-
-区块默认折叠，标题就是概览：
-
-- `字段级差异 · 7 个字段 · 3 处不同` —— 字段总数与不同的处数；
-- `字段级差异 · 7 个字段 · 0 处不同` —— 两次 run 配置完全相同；
-- `差异读取中…` —— 宿主尚未返回；
-- `指纹差异读取失败：<原因>` —— 宿主拒绝，例如 run id 从未出现过。
-
-展开后每行是字段名、第一个 run 的值、第二个 run 的值；值不同的行高亮，值相同的行灰显。值**完整显示**
-—— 等宽字体、自动换行 —— UI 不截断，也没有「展开查看完整值」。
-
-界面为中文；下面是本区块新增字符串的清单，放在这里是为了将来界面可翻译时能一一对应
-（`PROJECT_CONSTITUTION.md` §v0.5 路线图第 8 条）：
-
-| 中文 | English |
-| --- | --- |
-| 字段级差异 · N 个字段 · M 处不同 | field-level differences · N fields · M differ |
-| 差异读取中… | reading the differences… |
-| 指纹差异读取失败：<原因> | could not read the fingerprint diff: <reason> |
-| 这两个 run 的指纹里没有可比字段。 | these two runs' fingerprints share no field to compare. |
-
-## 会话持久化
-
-对话会自动保存，重启后可在 ChatPanel 顶部“会话”面板里打开 / 重命名 / 删除 —— 面板自己的那一行带一个**执行者**下拉，列表就跟着你在那里点名的执行者（「本机」是空的那一项）。
-
-- 存储位置：**应用数据目录**下的 `sessions.db`（SQLite），不在仓库、不在 AI 工作区。
-- 可用环境变量 `RISCDOM_SESSION_DB_PATH` 覆盖路径。
-- 清除：在会话面板逐条删除，或调用 `clear_all_sessions`（UI 二次确认）。
-- **不会**持久化：API Key、system prompt 原文、流式中间状态、审计事件。
-- 恢复会话只把历史消息注入 `AgentLoop`，**不重放**工具调用。
-
-## v0.2 待办
-
-- keyring 持久化（系统钥匙串，替代仅会话内）
-- 流式输出（SSE 逐字）
-- 会话：搜索 / 标签 / 导入导出 / 加密（均属 v0.2 后续）
-- 串口改为 sandbox 主动回调（去掉 host 轮询）
+[Apache License 2.0](LICENSE)。QEMU 与任何下载的 RISC-V 工具链都是独立程序、各自许可；由用户安装，
+本仓从不打包它们。

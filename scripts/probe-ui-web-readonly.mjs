@@ -19,8 +19,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const SRC = path.join(REPO, "ui", "src");
+const REPO = path.resolve(HERE, "..");
+const SRC = path.join(REPO, "src");
 
 const COMPONENT = path.join(SRC, "components", "DesktopOnly.tsx");
 const STRINGS = path.join(SRC, "i18n", "strings.ts");

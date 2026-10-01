@@ -1,179 +1,104 @@
 [中文](README.zh-CN.md) | English
 
-# ui
+# riscdom-adminapp
 
-The RiscDom desktop frontend (Tauri 2 + React + TypeScript + Vite).
+**The RiscDom management program** — the desktop application (and, going forward, its
+mobile and browser faces) that drives a RiscDom node and a control plane.
 
-## Layout
+This repository is one of three. The kernel is
+[`breakevery/riscdom`](https://github.com/breakevery/riscdom) — the sandbox, the audit
+chain, the agent loop, the connection layer and the host core. The control plane as a
+program is [`breakevery/riscdom-server`](https://github.com/breakevery/riscdom-server)
+— the HTTP + SSE server. **This repository is the program a person uses**: the Tauri
+shell and the React front end.
 
-**Main view** — two panes, side by side, both always visible (the core experience):
+> **Status.** `v1.0.0`. The split out of the kernel is **M8-4b**; this repository
+> carries the front end (at the root) and the Tauri shell crate (`host-tauri/`).
 
-- **Left · chat** (`panels/ChatPanel.tsx`): the message list (user / assistant / tool) plus the
-  input box at the bottom. Tool calls render as collapsible blocks (tool name + arguments +
-  result). While a run is in flight the input box is disabled and shows "thinking…".
-- **Right · serial canvas** (`panels/CanvasPanel.tsx`): an xterm.js terminal that shows guest
-  serial output live, with a VM status bar, a clear button and serial-log export on top. Serial
-  output **accumulates across runs** (it is never cleared automatically; use "clear" when you want
-  a blank terminal).
-- One draggable splitter sits between them (`layout/AppShell.tsx`, no third-party splitter
-  library). The chat width is remembered in `localStorage` as `riscdom.layout.chatWidth` (an
-  integer number of pixels, never anything sensitive).
+## What is here
 
-**Top bar** — the project name on the left plus a **VM badge** once a VM has been used in this
-session: a green dot with “VM running”, or a grey dot with “VM stopped”. Hovering shows how long
-it has been running. The VM is a cross-run resource (the agent is told not to stop it on its own),
-so the badge is how you can see that it is still alive; the value comes from the host
-(`vm_status`), never from guesswork in the UI. The gear on the right opens the settings page.
-
-**Settings page** — opens from the gear button in the top bar (top right); `Esc` or “← 返回”
-returns to the main view. It fills the window and is split into tabs
-(`src/settings/SettingsTabs.tsx`):
-
-- **Model** — **executor** (whose model configuration the form edits; "This node" is the
-  empty entry), provider preset, base URL, model, API key, “save to the OS keyring”, readiness banner
-- **Toolchain** — two blocks, one per tool: the RISC-V GCC and QEMU statuses (resolved path
-  plus a source badge), re-probe, set the path by hand, and the full search diagnostics
-- **Snapshot** — snapshot list (save / restore / delete) plus the workspace file list
-- **Audit** — event count, hash-chain status, actor filter and the recent event list
-- **Plugin** — placeholder for the capability-plugin system (v0.4+)
-
-Both views stay mounted and are toggled with CSS, so switching pages never loses chat messages,
-the terminal buffer or scroll position.
-
-## Auto-scroll
-
-The chat log and the serial canvas follow the newest output on their own — no third-party
-scroll library, just `scrollTop` / `scrollHeight` (chat) and xterm's `viewportY` / `baseY`
-(serial).
-
-- While you are at (or within 80 px of) the bottom, new messages, streamed tokens and serial
-  chunks scroll into view automatically; high-frequency stream deltas are coalesced into a
-  single follow per animation frame.
-- Scroll up and following pauses: a floating **new messages ↓** / **jump to latest ↓** button
-  appears instead of yanking the view back. Clicking it returns to the bottom and hides the
-  button.
-- A finished run (`agent:final`), switching sessions, and clearing the serial terminal all jump
-  straight back to the bottom.
-
-## Running
-
-```powershell
-npm install
-npm run build        # tsc + vite build
-npm run tauri dev    # launch the desktop app (needs the Rust toolchain)
+```text
+riscdom-adminapp/
+├── Cargo.toml            # the workspace: `host-tauri` only; `src-tauri` builds standalone
+├── host-tauri/           # the Tauri shell: commands / events / state (a facade over host-core)
+├── src/                  # the React front end (layout / panels / API / state)
+├── src-tauri/            # the Tauri application crate (registers the host-tauri commands)
+├── scripts/              # the gate, the probes, the guards
+├── index.html, vite.config.ts, tsconfig*.json
+├── CLA.md                # this repository's own CLA and signature store
+└── .github/workflows/    # ci.yml (gate / bundle / secrets), cla.yml
 ```
 
-`npm run tauri build` produces installers (icons etc. are still MVP-rough).
+The front end lives at **the repository root** (it used to be `ui/` inside the
+kernel). `src-tauri/` is a **standalone** crate — it is excluded from the workspace
+because Tauri's build needs its own lock file — and it reaches:
 
-## Setting the API key (this session only)
+- `host-tauri` by **path** (`../host-tauri`), the crate in this repository;
+- `server` from **`riscdom-server`'s `v1.0.0` tag** (a git dependency), the control
+  plane the shell starts in-process so a phone can reach the node.
 
-Fill in API Key / Base URL / Model in the **settings** pane and click "save for this
-session".
+`host-tauri` in turn reaches the kernel's `host-core` and `net` from **the kernel's
+`v1.0.0` tag**. One tag per upstream repository, and `Cargo.lock` is committed: a tag
+can move, a committed lock cannot.
 
-- The key only lives in backend memory (`host_core::AppState::llm_config`);
-- it is **never** written to localStorage / sessionStorage / console / the audit log / disk;
-- the frontend clears the input box immediately after saving;
-- status read-outs echo `base_url` / `model` and **never the key**.
+## Requirements
 
-## Architecture
+- **Rust** (with `rustfmt` + `clippy`) and the **MSVC toolchain** on Windows
+  (required by Tauri).
+- **Node / npm** — Node 22.6 or newer (the probes import `.ts` directly and rely on
+  type stripping; default from Node 23.6).
+- **Linux** additionally needs WebKitGTK and its neighbours (`libwebkit2gtk-4.1-dev`,
+  `libgtk-3-dev`, `librsvg2-dev`, `libsoup-3.0-dev`, `libayatana-appindicator3-dev`)
+  and `libdbus-1-dev` (for the kernel's `keyring` backend).
 
+## Build and run
+
+```sh
+# 1. front-end dependencies
+npm ci
+
+# 2. launch the desktop app (compiles the Rust backend)
+npm run tauri dev
 ```
-frontend (React)  --invoke/listen-->  ui/src-tauri (Tauri shell)  -->  host crate
-                                                                        |--> agent
-                                                                        |--> sandbox
-                                                                        |--> audit
-```
 
-- All `invoke` calls are centralised in `src/api/tauri.ts` so they are easy to audit.
-- The frontend **never** touches QEMU / gcc / Rust crates directly.
-- LLM and serial content is never rendered with `innerHTML` / `dangerouslySetInnerHTML`
-  (XSS guard).
-
-## Events
-
-`agent:iteration` / `agent:tool_call` / `agent:tool_result` / `agent:final` /
-`serial:chunk` / `vm:state`. See `host-tauri/README.md`.
+Ask the agent for something end to end — for example: *"Write a RISC-V bare-metal
+Hello World, compile it, run it and read the serial output back"* — after pointing
+the settings at a model provider (bring your own key, or a local model such as
+Ollama / LM Studio, which needs no key).
 
 ## Tests
 
-End-to-end (mock LLM, needs QEMU + the RISC-V toolchain):
+```sh
+# the gate: the one list of what "green" means (CI runs the same file)
+sh scripts/gate.sh
 
-```text
-cargo test -p host-core -- --ignored --nocapture
+# the shell crate alone
+cargo test -p host-tauri
+
+# the front end build
+npm run build
 ```
 
-Real-API end-to-end (needs a key):
+The gate runs the front end build, the `host-tauri` and `src-tauri` lints and checks,
+and the **seventeen UI regression probes**. Four of those probes read sources that
+live in the kernel (the split moved them out); each prints a **SKIP** with its reason
+rather than failing, and the cross-repository checks return with **M8-4d**.
 
-```powershell
-$env:DEEPSEEK_API_KEY = "***"
-cargo test -p agent -- --ignored --nocapture
-npm run tauri dev   # or drive the UI by hand
-```
+## Security statement
 
-## Snapshot panel
+- This program **does not provide, host or embed** any API key. All model access is
+  bring-your-own-key.
+- API keys stay on your machine (the OS keyring by default) and **never pass through
+  any server of this project**.
+- This program **never** uploads your code, serial output or audit log anywhere.
 
-The "snapshots" section of the settings pane lists snapshots under
-`<workspace>/.riscdom/snapshots`:
+## Contributing
 
-- labelled "**real**" (`.mig`, a QMP migration stream) or "**reboot**" (`.json`, the old
-  fallback);
-- refresh and delete are supported (delete asks for confirmation);
-- "**save current state**": stores the running host-owned VM as a real snapshot (the button
-  is disabled while no VM runs);
-- "**restore**" (real snapshots only): after confirmation the current VM is stopped and
-  restored from the snapshot (see `host-tauri/README.md`).
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) first: every change must pass the local
+gate (`scripts/gate.sh`) and go through a pull request. Sign the [CLA](CLA.md) — this
+repository carries its own.
 
-## Audit tab: runs, side-by-side and the field-level diff
+## License
 
-Ticking two runs in the audit tab's list opens the side-by-side panel, and **under
-it** the **field-level diff** (v0.6 batch 1, golden-path step 8). The host compares
-the two configuration fingerprints it read off the chain — not a digest, the
-documents themselves — and returns one row per **top-level** field, in the order the
-fingerprint declares them. The panel renders that order exactly as it arrives: it
-never re-sorts it, and it renders every field, the unchanged ones included.
-
-The block is collapsed by default; its header carries the summary:
-
-- `字段级差异 · 7 个字段 · 3 处不同` — how many fields there are, and how many differ;
-- `字段级差异 · 7 个字段 · 0 处不同` — two runs configured identically;
-- `差异读取中…` — the host has not answered yet;
-- `指纹差异读取失败：<reason>` — the host refused, e.g. a run id this log never saw.
-
-Expanded, each row shows the field name, the first run's value and the second run's
-value. A row whose values differ is highlighted; a row whose values are equal is
-dimmed. Values are shown **whole** — monospace, wrapped — the UI truncates nothing
-and offers no "show more".
-
-The interface is Chinese; this is the list of the strings this block adds, kept here
-so it can be mirrored when the interface becomes translatable
-(`PROJECT_CONSTITUTION.md` §v0.5 roadmap item 8):
-
-| Chinese | English |
-| --- | --- |
-| 字段级差异 · N 个字段 · M 处不同 | field-level differences · N fields · M differ |
-| 差异读取中… | reading the differences… |
-| 指纹差异读取失败：<原因> | could not read the fingerprint diff: <reason> |
-| 这两个 run 的指纹里没有可比字段。 | these two runs' fingerprints share no field to compare. |
-
-## Session persistence
-
-Conversations are saved automatically; after a restart you can open / rename / delete them
-from the "sessions" panel at the top of ChatPanel — whose own row carries an **executor**
-picker, so the list follows whichever executor you name there ("This node" is the empty entry).
-
-- Storage: `sessions.db` (SQLite) under the **app data directory** — not in the repository
-  and not in the AI workspace.
-- The `RISCDOM_SESSION_DB_PATH` environment variable can override the path.
-- Clearing: delete entries one by one in the panel, or call `clear_all_sessions` (the UI asks
-  for confirmation).
-- **Never persisted**: API keys, the raw system prompt, streaming intermediate state, audit
-  events.
-- Restoring a session injects history messages into `AgentLoop` and **never replays** tool
-  calls.
-
-## v0.2 TODO
-
-- keyring persistence (the OS keyring, replacing session-only storage)
-- streaming output (SSE, token by token)
-- sessions: search / tags / import-export / encryption (all v0.2 follow-ups)
-- serial moved to sandbox push callbacks (dropping host polling)
+[Apache License 2.0](LICENSE). QEMU and any downloaded RISC-V toolchain are separate
+programs under their own licences; they are installed by the user, never bundled here.

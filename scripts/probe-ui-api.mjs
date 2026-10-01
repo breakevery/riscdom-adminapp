@@ -26,8 +26,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const API = path.join(REPO, "ui", "src", "api");
+const REPO = path.resolve(HERE, "..");
+const API = path.join(REPO, "src", "api");
 const HTTP = path.join(API, "http.ts");
 const TAURI = path.join(API, "tauri.ts");
 const INDEX = path.join(API, "index.ts");
@@ -413,7 +413,7 @@ for (const relative of [
   "src/panels/CanvasPanel.tsx",
   "src/settings/ModelTab.tsx",
 ]) {
-  const source = readFileSync(path.join(REPO, "ui", relative), "utf8");
+  const source = readFileSync(path.join(REPO, relative), "utf8");
   check(
     `${relative} imports the adapter, not one implementation`,
     /import \* as api from "\.\.\/api"/.test(source) && !source.includes("api/tauri"),

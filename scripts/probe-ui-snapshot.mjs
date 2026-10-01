@@ -16,9 +16,9 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const MODULE = path.join(REPO, "ui", "src", "lib", "snapshotName.ts");
-const TAB = path.join(REPO, "ui", "src", "settings", "SnapshotTab.tsx");
+const REPO = path.resolve(HERE, "..");
+const MODULE = path.join(REPO, "src", "lib", "snapshotName.ts");
+const TAB = path.join(REPO, "src", "settings", "SnapshotTab.tsx");
 
 let failures = 0;
 function check(name, ok, detail) {

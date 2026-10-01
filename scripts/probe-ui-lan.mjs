@@ -17,18 +17,18 @@
  * Those are walked by hand (`docs/manual-acceptance.md`, layer 8).
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
+const REPO = path.resolve(HERE, "..");
 
-const SHELL_MANIFEST = path.join(REPO, "ui", "src-tauri", "Cargo.toml");
-const SHELL_LIB = path.join(REPO, "ui", "src-tauri", "src", "lib.rs");
-const SHELL_LAN = path.join(REPO, "ui", "src-tauri", "src", "lan.rs");
-const CONF = path.join(REPO, "ui", "src-tauri", "tauri.conf.json");
-const VITE = path.join(REPO, "ui", "vite.config.ts");
+const SHELL_MANIFEST = path.join(REPO, "src-tauri", "Cargo.toml");
+const SHELL_LIB = path.join(REPO, "src-tauri", "src", "lib.rs");
+const SHELL_LAN = path.join(REPO, "src-tauri", "src", "lan.rs");
+const CONF = path.join(REPO, "src-tauri", "tauri.conf.json");
+const VITE = path.join(REPO, "vite.config.ts");
 const COMMANDS = path.join(REPO, "host-tauri", "src", "commands.rs");
 const SETTINGS = path.join(REPO, "host-core", "src", "settings.rs");
 const SRC_SETTINGS = path.join(REPO, "host-core", "src", "settings.rs");
@@ -46,6 +46,11 @@ function check(name, ok, detail) {
 }
 
 const read = (p) => readFileSync(p, "utf8");
+
+const KERNEL_SKIP =
+  "kernel source not present in adminapp repo; cross-repo consistency check deferred to M8-4d";
+/** Print a skip (never a failure) for a check whose file left this repository. */
+const skip = (name) => console.log(`SKIP  ${name}: ${KERNEL_SKIP}`);
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 
 // ----- the shell owns the edge ------------------------------------------------
@@ -53,7 +58,7 @@ const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, ""
 const manifest = read(SHELL_MANIFEST);
 check(
   "the shell crate takes the server edge (and only it)",
-  /^server = \{ path = "\.\.\/\.\.\/server" \}$/m.test(manifest),
+  /^server = \{ git = "https:\/\/github\.com\/breakevery\/riscdom-server", tag = "v1\.0\.0" \}$/m.test(manifest),
 );
 check(
   "...and host-tauri does not",
@@ -137,13 +142,17 @@ check(
 
 // ----- the switches default to off --------------------------------------------
 
-const settings = read(SRC_SETTINGS);
-check(
-  "both switches are off in a fresh settings file",
-  /pub lan_enabled: bool,/.test(settings) &&
-    /pub lan_allow_lan: bool,/.test(settings) &&
-    /pub struct NetworkSettings/.test(settings),
-);
+if (existsSync(SRC_SETTINGS)) {
+  const settings = read(SRC_SETTINGS);
+  check(
+    "both switches are off in a fresh settings file",
+    /pub lan_enabled: bool,/.test(settings) &&
+      /pub lan_allow_lan: bool,/.test(settings) &&
+      /pub struct NetworkSettings/.test(settings),
+  );
+} else {
+  skip("both switches are off in a fresh settings file");
+}
 
 check("gate.sh runs this probe", /probe-ui-lan\.mjs/.test(read(GATE)));
 

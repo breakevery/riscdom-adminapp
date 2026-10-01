@@ -22,9 +22,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const SSE = path.join(REPO, "ui", "src", "lib", "sse.ts");
-const HTTP = path.join(REPO, "ui", "src", "api", "http.ts");
+const REPO = path.resolve(HERE, "..");
+const SSE = path.join(REPO, "src", "lib", "sse.ts");
+const HTTP = path.join(REPO, "src", "api", "http.ts");
 const GATE = path.join(REPO, "scripts", "gate.sh");
 
 let failures = 0;

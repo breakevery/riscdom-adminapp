@@ -19,9 +19,9 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const SHELL = path.join(REPO, "ui", "src", "layout", "AppShell.tsx");
-const MODULE = path.join(REPO, "ui", "src", "lib", "chatWidth.ts");
+const REPO = path.resolve(HERE, "..");
+const SHELL = path.join(REPO, "src", "layout", "AppShell.tsx");
+const MODULE = path.join(REPO, "src", "lib", "chatWidth.ts");
 
 const MIN_CHAT_W = 240;
 const MAX_CHAT_W = 900;

@@ -22,13 +22,13 @@
  * walk in `docs/manual-acceptance.md` layer 9.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const SRC = path.join(REPO, "ui", "src");
+const REPO = path.resolve(HERE, "..");
+const SRC = path.join(REPO, "src");
 
 const INDEX = path.join(SRC, "api", "index.ts");
 const APP = path.join(SRC, "App.tsx");
@@ -37,7 +37,7 @@ const SHELL = path.join(SRC, "layout", "AppShell.tsx");
 const TABS = path.join(SRC, "settings", "SettingsTabs.tsx");
 const STORE = path.join(SRC, "state", "appStore.ts");
 const STRINGS = path.join(SRC, "i18n", "strings.ts");
-const RUST_SHELL = path.join(REPO, "ui", "src-tauri", "src", "lib.rs");
+const RUST_SHELL = path.join(REPO, "src-tauri", "src", "lib.rs");
 const SETTINGS = path.join(REPO, "host-core", "src", "settings.rs");
 const KEYRING = path.join(REPO, "host-core", "src", "keyring.rs");
 const GATE = path.join(REPO, "scripts", "gate.sh");
@@ -54,6 +54,11 @@ function check(name, ok, detail) {
 }
 
 const read = (p) => readFileSync(p, "utf8");
+
+const KERNEL_SKIP =
+  "kernel source not present in adminapp repo; cross-repo consistency check deferred to M8-4d";
+/** Print a skip (never a failure) for a check whose file left this repository. */
+const skip = (name) => console.log(`SKIP  ${name}: ${KERNEL_SKIP}`);
 /** The file's code without comments: a word mentioned in a doc comment is not code. */
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 
@@ -186,23 +191,29 @@ check(
 
 // ----- the credential is not a setting ----------------------------------------
 
-const settings = read(SETTINGS);
-check(
-  "the settings struct has no token field",
-  /pub struct NetworkSettings \{/.test(settings) &&
-    !/pub remote_token:/.test(settings) &&
-    /pub remote_url: Option<String>/.test(settings),
-);
-check(
-  "...and says where it went instead",
-  /OS keyring under `remote-token:<host>`/.test(settings),
-);
-check(
-  "the keyring names it beside the provider key",
-  /pub fn user_for_remote\(host: &str\) -> String \{\s*format!\("remote-token:\{host\}"\)/.test(
-    read(KEYRING),
-  ),
-);
+if (existsSync(SETTINGS) && existsSync(KEYRING)) {
+  const settings = read(SETTINGS);
+  check(
+    "the settings struct has no token field",
+    /pub struct NetworkSettings \{/.test(settings) &&
+      !/pub remote_token:/.test(settings) &&
+      /pub remote_url: Option<String>/.test(settings),
+  );
+  check(
+    "...and says where it went instead",
+    /OS keyring under `remote-token:<host>`/.test(settings),
+  );
+  check(
+    "the keyring names it beside the provider key",
+    /pub fn user_for_remote\(host: &str\) -> String \{\s*format!\("remote-token:\{host\}"\)/.test(
+      read(KEYRING),
+    ),
+  );
+} else {
+  skip("the settings struct has no token field");
+  skip("...and says where it went instead");
+  skip("the keyring names it beside the provider key");
+}
 check(
   "the shell's four commands use it and are registered",
   ["fn save_remote_token(", "fn read_remote_token(", "fn clear_remote_token(", "fn restart_app("].every(

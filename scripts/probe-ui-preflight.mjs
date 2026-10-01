@@ -16,13 +16,13 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const MODULE = path.join(REPO, "ui", "src", "lib", "preflightView.ts");
-const I18N = path.join(REPO, "ui", "src", "i18n", "index.ts");
-const TAB = path.join(REPO, "ui", "src", "settings", "ToolchainTab.tsx");
-const STORE = path.join(REPO, "ui", "src", "state", "appStore.ts");
-const API = path.join(REPO, "ui", "src", "api", "tauri.ts");
-const SHELL = path.join(REPO, "ui", "src-tauri", "src", "lib.rs");
+const REPO = path.resolve(HERE, "..");
+const MODULE = path.join(REPO, "src", "lib", "preflightView.ts");
+const I18N = path.join(REPO, "src", "i18n", "index.ts");
+const TAB = path.join(REPO, "src", "settings", "ToolchainTab.tsx");
+const STORE = path.join(REPO, "src", "state", "appStore.ts");
+const API = path.join(REPO, "src", "api", "tauri.ts");
+const SHELL = path.join(REPO, "src-tauri", "src", "lib.rs");
 const HOST_CMDS = path.join(REPO, "host-tauri", "src", "commands.rs");
 
 let failures = 0;

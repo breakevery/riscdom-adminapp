@@ -21,13 +21,13 @@
  *   names the account with the keyring crate's own helper.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO = path.resolve(HERE, "..", "..");
-const SRC = path.join(REPO, "ui", "src");
+const REPO = path.resolve(HERE, "..");
+const SRC = path.join(REPO, "src");
 
 const TAB = path.join(SRC, "settings", "NetworkTab.tsx");
 const TABS = path.join(SRC, "settings", "SettingsTabs.tsx");
@@ -35,7 +35,7 @@ const STORE = path.join(SRC, "state", "appStore.ts");
 const TYPES = path.join(SRC, "api", "types.ts");
 const TAURI = path.join(SRC, "api", "tauri.ts");
 const HTTP = path.join(SRC, "api", "http.ts");
-const SHELL = path.join(REPO, "ui", "src-tauri", "src", "lib.rs");
+const SHELL = path.join(REPO, "src-tauri", "src", "lib.rs");
 const SETTINGS = path.join(REPO, "host-core", "src", "settings.rs");
 const KEYRING = path.join(REPO, "host-core", "src", "keyring.rs");
 const SERVER_TOKEN = path.join(REPO, "server", "src", "token.rs");
@@ -54,6 +54,11 @@ function check(name, ok, detail) {
 }
 
 const read = (p) => readFileSync(p, "utf8");
+
+const KERNEL_SKIP =
+  "kernel source not present in adminapp repo; cross-repo consistency check deferred to M8-4d";
+/** Print a skip (never a failure) for a check whose file left this repository. */
+const skip = (name) => console.log(`SKIP  ${name}: ${KERNEL_SKIP}`);
 /** The file's code without comments: a word mentioned in a doc comment is not code. */
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 
@@ -169,28 +174,33 @@ check(
     !types.includes("remote_token:"),
   FIELDS.join(", "),
 );
-const settings = read(SETTINGS);
-check(
-  "the host's struct carries the same four",
-  FIELDS.every((field) => settings.includes(`pub ${field}:`)) &&
-    !settings.includes("pub remote_token:"),
-  FIELDS.join(", "),
-);
-// The version constant is free to move when a *different* field needs a migration
-// (v1.0 M2b-1 moved it to 2 for the per-executor LLM map), so what is pinned here
-// is the property this check is about — `network` is additive — plus the one
-// invariant that has to hold anyway: the document that declares the format names
-// the same number the constant does. Pinning the literal made this check fail the
-// day another field migrated.
-const settingsVersion = /pub const SETTINGS_VERSION: u32 = (\d+);/.exec(settings)?.[1];
-const compatibility = readFileSync(path.join(REPO, "docs", "api-compatibility.md"), "utf8");
-check(
-  "settings.json gains it additively",
-  /#\[serde\(default\)\]\s*\n\s*pub network: Option<NetworkSettings>/.test(settings) &&
-    settingsVersion !== undefined &&
-    compatibility.includes(`**${settingsVersion}**`),
-  settingsVersion ? `version ${settingsVersion}, documented` : "no version constant",
-);
+if (existsSync(SETTINGS) && existsSync(path.join(REPO, "docs", "api-compatibility.md"))) {
+  const settings = read(SETTINGS);
+  check(
+    "the host's struct carries the same four",
+    FIELDS.every((field) => settings.includes(`pub ${field}:`)) &&
+      !settings.includes("pub remote_token:"),
+    FIELDS.join(", "),
+  );
+  // The version constant is free to move when a *different* field needs a migration
+  // (v1.0 M2b-1 moved it to 2 for the per-executor LLM map), so what is pinned here
+  // is the property this check is about — `network` is additive — plus the one
+  // invariant that has to hold anyway: the document that declares the format names
+  // the same number the constant does. Pinning the literal made this check fail the
+  // day another field migrated.
+  const settingsVersion = /pub const SETTINGS_VERSION: u32 = (\d+);/.exec(settings)?.[1];
+  const compatibility = readFileSync(path.join(REPO, "docs", "api-compatibility.md"), "utf8");
+  check(
+    "settings.json gains it additively",
+    /#\[serde\(default\)\]\s*\n\s*pub network: Option<NetworkSettings>/.test(settings) &&
+      settingsVersion !== undefined &&
+      compatibility.includes(`**${settingsVersion}**`),
+    settingsVersion ? `version ${settingsVersion}, documented` : "no version constant",
+  );
+} else {
+  skip("the host's struct carries the same four");
+  skip("settings.json gains it additively");
+}
 
 // ----- two transports, held to each other -------------------------------------
 
@@ -241,22 +251,30 @@ check(
     ) &&
     /user_for_remote\(host\)/.test(shell),
 );
-check(
-  "the keyring account name is declared once, beside the provider one",
-  /pub fn user_for_remote\(host: &str\) -> String \{\s*format!\("remote-token:\{host\}"\)/.test(
-    read(KEYRING),
-  ) &&
-    /pub const SERVICE: &str = "com\.breakevery\.riscdom";/.test(read(KEYRING)),
-);
+if (existsSync(KEYRING)) {
+  check(
+    "the keyring account name is declared once, beside the provider one",
+    /pub fn user_for_remote\(host: &str\) -> String \{\s*format!\("remote-token:\{host\}"\)/.test(
+      read(KEYRING),
+    ) &&
+      /pub const SERVICE: &str = "com\.breakevery\.riscdom";/.test(read(KEYRING)),
+  );
+} else {
+  skip("the keyring account name is declared once, beside the provider one");
+}
 check(
   "the token is read, never created",
   !/load_or_create/.test(shell) && /std::fs::read_to_string/.test(shell),
 );
-check(
-  "...and the file it reads is the server's own name",
-  /pub const TOKEN_FILE: &str = "token";/.test(read(SERVER_TOKEN)) &&
-    /join\("token"\)/.test(shell),
-);
+if (existsSync(SERVER_TOKEN)) {
+  check(
+    "...and the file it reads is the server's own name",
+    /pub const TOKEN_FILE: &str = "token";/.test(read(SERVER_TOKEN)) &&
+      /join\("token"\)/.test(shell),
+  );
+} else {
+  skip("...and the file it reads is the server's own name");
+}
 
 // ----- the words --------------------------------------------------------------
 
