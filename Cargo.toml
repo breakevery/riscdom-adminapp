@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["host-tauri"]
+exclude = ["src-tauri"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
