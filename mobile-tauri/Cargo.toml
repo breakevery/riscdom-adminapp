@@ -1,0 +1,26 @@
+[package]
+name = "riscdom-mobile"
+version = "1.1.0"
+description = "RiscDom mobile shell (Tauri 2, Android): the web build in a webview"
+edition = "2021"
+
+# The mobile shell is deliberately its own workspace, exactly as `src-tauri` is, and
+# it links **neither the kernel nor the control plane**: no `host-tauri`, no
+# `host-core`, no `net`, no `server`. A phone reaches a `riscdom-server` over HTTP,
+# and the web build's `api/http.ts` is that whole transport. Keeping this crate at
+# four dependencies is what makes an Android build possible at all -- the desktop
+# shell's edges (`host-tauri` reaching `keyring`/dbus, `server` embedding the node)
+# are not things a phone can carry.
+[workspace]
+
+[lib]
+name = "riscdom_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

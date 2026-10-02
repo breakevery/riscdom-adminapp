@@ -58,6 +58,26 @@ npm run tauri dev
 在设置里指向一个模型提供方后（自带密钥，或用本地模型如 Ollama / LM Studio —— 无需密钥），让 agent
 端到端做一件事，例如：*「写一个 RISC-V 裸机 Hello World，编译、运行并读回串口输出」*。
 
+## 移动端（Android）
+
+`mobile-tauri/` 是**同一套前端的第二个外壳**：一个 Tauri 2 webview，加载 `dist/app` —— 即桌面壳与浏览器
+已经在用的那一份构建。它经 HTTP 连一个 `riscdom-server`，**既不链接内核、也不链接控制平面**（批 ED-8），
+所以前端原样复用，没有第二套 UI。
+
+Android 构建需要 Android 工具链 —— **JDK 17+、Android SDK 与 NDK** —— 而本机**没有装**，所以它在 CI 里跑
+（批 ED-9）。装好之后：
+
+```sh
+npm install
+npm run tauri:android:build      # -> mobile-tauri/gen/android/app/build/outputs/apk/**/*.apk
+npm run tauri:android:dev        # 同上，跑在设备或模拟器上
+```
+
+`gen/android` 由 `tauri android init` 生成，**目前尚未提交**，所以这两个脚本在它生成之前跑不起来。iOS 是
+后续批次（需要 macOS 与 Apple 账号）。
+
+移动壳对节点是**只读**的：浏览器面本来就把每个控制项都做成了桩（`src/api/http.ts`），这里同样如此。
+
 ## 测试
 
 ```sh

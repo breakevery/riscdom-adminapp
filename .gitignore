@@ -18,6 +18,11 @@ dist/*
 # Tauri generated
 /src-tauri/gen/schemas
 
+# Mobile shell (v1.x batch ED-8): the generated Android project and its build tree.
+# `tauri android init` writes `gen/android`; batch ED-9 decides whether to commit it.
+/mobile-tauri/gen/
+/mobile-tauri/target/
+
 # OS
 .DS_Store
 Thumbs.db
