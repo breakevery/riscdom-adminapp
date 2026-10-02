@@ -19,10 +19,10 @@ dist/*
 /src-tauri/gen/schemas
 
 # Mobile shell (v1.x batches ED-8/ED-9a): the generated Android project under
-# `mobile-tauri/gen/android` **is committed** -- it is the Android app. The schemas
+# `mobile/src-tauri/gen/android` **is committed** -- it is the Android app. The schemas
 # `tauri-build` rewrites on every build, and the build tree, are not.
-/mobile-tauri/gen/schemas
-/mobile-tauri/target/
+/mobile/src-tauri/gen/schemas
+/mobile/src-tauri/target/
 
 # OS
 .DS_Store

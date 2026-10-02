@@ -219,17 +219,20 @@ jobs:
       - name: point Tauri at the NDK the image already has
         run: echo "NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
 
-      # `mobile-tauri/gen/android` is committed (batch ED-9a), so init is only the
-      # fallback for a checkout that somehow lacks it -- and `--ci` keeps it from
-      # prompting (the image also exports `CI=true`, which Tauri reads the same way).
+      # The CLI resolves the project by looking for `src-tauri/tauri.conf.json` from the
+      # working directory upward, so it must run **inside** `mobile/` -- and
+      # `mobile/src-tauri/gen/android` is committed (batches ED-9a), so init is only the
+      # fallback for a checkout that somehow lacks it. `--ci` keeps it from prompting.
       - name: initialize the Android project (only when it is missing)
+        working-directory: mobile/src-tauri
         run: |
-          if [ ! -d mobile-tauri/gen/android ]; then
-            npx tauri android init --ci --config mobile-tauri/tauri.conf.json
+          if [ ! -d gen/android ]; then
+            npx tauri android init --ci
           fi
 
-      # The repository's own Android build command; `--ci` past the `--` is passed
-      # through to the Tauri CLI so it never waits for an answer.
+      # The repository's own Android build command; the script itself `cd`s into
+      # `mobile/src-tauri`. `--ci` past the `--` is passed through to the Tauri CLI so it
+      # never waits for an answer.
       - name: build the APK
         run: npm run tauri:android:build -- --ci
 
@@ -237,7 +240,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: riscdom-mobile-apk
-          path: mobile-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: mobile/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -248,5 +251,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mobile-gen-android
-          path: mobile-tauri/gen/android/
+          path: mobile/src-tauri/gen/android/
           retention-days: 3
