@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:android:dev": "tauri android dev --config mobile-tauri/tauri.conf.json",
-    "tauri:android:build": "tauri android build --config mobile-tauri/tauri.conf.json"
+    "tauri:android:build": "tauri android build --apk --config mobile-tauri/tauri.conf.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

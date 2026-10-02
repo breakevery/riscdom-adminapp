@@ -18,9 +18,10 @@ dist/*
 # Tauri generated
 /src-tauri/gen/schemas
 
-# Mobile shell (v1.x batch ED-8): the generated Android project and its build tree.
-# `tauri android init` writes `gen/android`; batch ED-9 decides whether to commit it.
-/mobile-tauri/gen/
+# Mobile shell (v1.x batches ED-8/ED-9a): the generated Android project under
+# `mobile-tauri/gen/android` **is committed** -- it is the Android app. The schemas
+# `tauri-build` rewrites on every build, and the build tree, are not.
+/mobile-tauri/gen/schemas
 /mobile-tauri/target/
 
 # OS
